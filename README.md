@@ -1,5 +1,7 @@
 # torchMoji
 
+> **Read our blog post about the implementation process [here](https://medium.com/huggingface/understanding-emotions-from-keras-to-pytorch-3ccb61d5a983).**
+
 TorchMoji is a [pyTorch](http://pytorch.org/) implementation of the [DeepMoji](https://github.com/bfelbo/DeepMoji) model developped by Bjarke Felbo, Alan Mislove, Anders Søgaard, Iyad Rahwan and Sune Lehmann.
 
 This model trained on 1.2 billion tweets with emojis to understand how language is used to express emotions. Through transfer learning the model can obtain state-of-the-art performance on many emotion-related text modeling tasks.
@@ -26,7 +28,7 @@ First you need to install [pyTorch (version 0.2+)](http://pytorch.org/), current
 ```bash
 conda install pytorch -c soumith
 ```
-At the present stage the model can't make efficient use of CUDA. See details in the HuggingFace blog post.
+At the present stage the model can't make efficient use of CUDA. See details in the [Hugging Face blog post](https://medium.com/huggingface/understanding-emotions-from-keras-to-pytorch-3ccb61d5a983).
 
 When pyTorch is installed, run the following in the root directory to install the remaining dependencies:
   
