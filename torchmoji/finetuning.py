@@ -514,9 +514,6 @@ def fit_model(model, loss_op, optim_op, train_gen, val_gen, epochs,
             X_train, y_train = data
             X_train = Variable(X_train, requires_grad=False)
             y_train = Variable(y_train, requires_grad=False)
-            if torch.cuda.is_available():
-                X_train = X_train.cuda()
-                y_train = y_train.cuda()
             model.train()
             optim_op.zero_grad()
             output = model(X_train)

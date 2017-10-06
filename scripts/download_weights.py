@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os
 from subprocess import call
+from builtins import input
 
 curr_folder = os.path.basename(os.path.normpath(os.getcwd()))
 
@@ -23,7 +24,7 @@ def prompt():
             'n': False,
             'no': False,
         }
-        choice = raw_input().lower()
+        choice = input().lower()
         if choice in valid:
             return valid[choice]
         else:

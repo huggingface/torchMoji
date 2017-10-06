@@ -51,8 +51,6 @@ class Attention(Module):
         # See e.g. https://discuss.pytorch.org/t/self-attention-on-words-and-masking/5671/5
         max_len = unnorm_ai.size(1)
         idxes = torch.arange(0, max_len, out=torch.LongTensor(max_len)).unsqueeze(0)
-        if torch.cuda.is_available():
-            idxes = idxes.cuda()
         mask = Variable((idxes < input_lengths.unsqueeze(1)).float())
 
         # apply mask and renormalize attention scores (weights)
