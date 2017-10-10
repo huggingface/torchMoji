@@ -76,9 +76,9 @@ for rerun_iter in range(5):
         nb_model_classes = 2 if use_f1_score else nb_classes
         model = torchmoji_transfer(
                     nb_model_classes,
-                    data['maxlen'], weight_path,
+                    weight_path,
                     extend_embedding=data['added'])
-        model.summary()
+        print(model)
 
         # Training
         print('Training: {}'.format(path))
