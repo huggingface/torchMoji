@@ -49,7 +49,7 @@ prob = model(tokenized)
 
 for prob in [prob]:
     # Find top emojis for each sentence. Emoji ids (0-63)
-    # correspond to the mapping in emoji_overview.png 
+    # correspond to the mapping in emoji_overview.png
     # at the root of the torchMoji repo.
     print('Writing results to {}'.format(OUTPUT_PATH))
     scores = []
@@ -64,8 +64,8 @@ for prob in [prob]:
         scores.append(t_score)
         print(t_score)
 
-    with open(OUTPUT_PATH, 'wb') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',', lineterminator='\n')
+    with open(OUTPUT_PATH, 'w') as csvfile:
+        writer = csv.writer(csvfile, delimiter=str(','), lineterminator='\n')
         writer.writerow(['Text', 'Top5%',
                         'Emoji_1', 'Emoji_2', 'Emoji_3', 'Emoji_4', 'Emoji_5',
                         'Pct_1', 'Pct_2', 'Pct_3', 'Pct_4', 'Pct_5'])
