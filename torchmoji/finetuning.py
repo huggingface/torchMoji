@@ -15,6 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from sklearn.metrics import accuracy_score
 from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import BatchSampler, SequentialSampler
@@ -356,15 +357,18 @@ def evaluate_using_acc(model, test_gen):
 
     # Validate on test_data
     model.eval()
-    correct_count = 0.0
-    total_y = sum(len(y) for _, y in test_gen)
+    accs = []
     for i, data in enumerate(test_gen):
         x, y = data
         outs = model(x)
-        pred = (outs >= 0).long()
-        added_counts = (pred == y).double().sum()
-        correct_count += added_counts
-    return correct_count/total_y
+        if model.nb_classes > 2:
+            pred = torch.max(outs, 1)[1]
+            acc = accuracy_score(y.squeeze().numpy(), pred.squeeze().numpy())
+        else:
+            pred = (outs >= 0).long()
+            acc = (pred == y).double().sum() / len(pred)
+        accs.append(acc)
+    return np.mean(accs)
 
 
 def chain_thaw(model, train_gen, val_gen, test_gen, nb_epochs, checkpoint_path, loss_op,
@@ -482,6 +486,14 @@ def train_by_chain_thaw(model, train_gen, val_gen, loss_op, patience, nb_epochs,
         if verbose >= 2:
             print("Loaded weights from {}".format(checkpoint_path))
 
+
+def calc_loss(loss_op, pred, yv):
+    if type(loss_op) is nn.CrossEntropyLoss:
+        return loss_op(pred.squeeze(), yv.squeeze())
+    else:
+        return loss_op(pred.squeeze(), yv.squeeze().float())
+
+
 def fit_model(model, loss_op, optim_op, train_gen, val_gen, epochs,
               checkpoint_path, patience):
     """ Analog to Keras fit_generator function.
@@ -505,7 +517,7 @@ def fit_model(model, loss_op, optim_op, train_gen, val_gen, epochs,
     torch.save(model.state_dict(), checkpoint_path)
 
     model.eval()
-    best_loss = np.mean([loss_op(model(Variable(xv)).squeeze(), Variable(yv.float()).squeeze()).data.cpu().numpy()[0] for xv, yv in val_gen])
+    best_loss = np.mean([calc_loss(loss_op, model(Variable(xv)), Variable(yv)).data.cpu().numpy()[0] for xv, yv in val_gen])
     print("original val loss", best_loss)
 
     epoch_without_impr = 0
@@ -517,7 +529,7 @@ def fit_model(model, loss_op, optim_op, train_gen, val_gen, epochs,
             model.train()
             optim_op.zero_grad()
             output = model(X_train)
-            loss = loss_op(output, y_train.float())
+            loss = calc_loss(loss_op, output, y_train)
             loss.backward()
             clip_grad_norm(model.parameters(), 1)
             optim_op.step()
@@ -529,7 +541,7 @@ def fit_model(model, loss_op, optim_op, train_gen, val_gen, epochs,
         acc = evaluate_using_acc(model, val_gen)
         print("val acc", acc)
 
-        val_loss = np.mean([loss_op(model(Variable(xv)).squeeze(), Variable(yv.float()).squeeze()).data.cpu().numpy()[0] for xv, yv in val_gen])
+        val_loss = np.mean([calc_loss(loss_op, model(Variable(xv)), Variable(yv)).data.cpu().numpy()[0] for xv, yv in val_gen])
         print("val loss", val_loss)
         if best_loss is not None and val_loss >= best_loss:
             epoch_without_impr += 1
