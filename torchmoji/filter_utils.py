@@ -11,8 +11,11 @@ import numpy as np
 from torchmoji.tokenizer import RE_MENTION, RE_URL
 from torchmoji.global_variables import SPECIAL_TOKENS
 
-IS_PYTHON2 = int(sys.version[0]) == 2
-chr_ = unichr if IS_PYTHON2 else chr
+try:
+    unichr        # Python 2
+except NameError:
+    unichr = chr  # Python 3
+
 
 AtMentionRegex = re.compile(RE_MENTION)
 urlRegex = re.compile(RE_URL)
@@ -36,8 +39,8 @@ VARIATION_SELECTORS = [ '\ufe00',
                         '\ufe0f']
 
 # from https://stackoverflow.com/questions/92438/stripping-non-printable-characters-from-a-string-in-python
-ALL_CHARS = (chr_(i) for i in range(sys.maxunicode))
-CONTROL_CHARS = ''.join(map(chr_, list(range(0,32)) + list(range(127,160))))
+ALL_CHARS = (unichr(i) for i in range(sys.maxunicode))
+CONTROL_CHARS = ''.join(map(unichr, list(range(0,32)) + list(range(127,160))))
 CONTROL_CHAR_REGEX = re.compile('[%s]' % re.escape(CONTROL_CHARS))
 
 def is_special_token(word):
