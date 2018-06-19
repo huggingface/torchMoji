@@ -3,7 +3,6 @@
 """
 from __future__ import print_function
 
-import sys
 import uuid
 from time import sleep
 from io import open
@@ -28,8 +27,13 @@ from torchmoji.global_variables import (FINETUNING_METHODS,
 from torchmoji.tokenizer import tokenize
 from torchmoji.sentence_tokenizer import SentenceTokenizer
 
-IS_PYTHON2 = int(sys.version[0]) == 2
-unicode_ = unicode if IS_PYTHON2 else str
+try:
+    unicode
+    IS_PYTHON2 = True
+except NameError:
+    unicode = str
+    IS_PYTHON2 = False
+
 
 def load_benchmark(path, vocab, extend_with=0):
     """ Loads the given benchmark dataset.
@@ -66,7 +70,7 @@ def load_benchmark(path, vocab, extend_with=0):
 
     # Decode data
     try:
-        texts = [unicode_(x) for x in data['texts']]
+        texts = [unicode(x) for x in data['texts']]
     except UnicodeDecodeError:
         texts = [x.decode('utf-8') for x in data['texts']]
 

@@ -11,6 +11,11 @@ sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 from torchmoji.sentence_tokenizer import SentenceTokenizer, coverage
 
+try:
+    unicode        # Python 2
+except NameError:
+    unicode = str  # Python 3
+
 IS_PYTHON2 = int(sys.version[0]) == 2
 
 OUTPUT_PATH = 'coverage.csv'

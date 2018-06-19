@@ -14,6 +14,11 @@ from torchmoji.create_vocab import VocabBuilder
 from torchmoji.sentence_tokenizer import SentenceTokenizer, extend_vocab, coverage
 from torchmoji.tokenizer import tokenize
 
+try:
+    unicode        # Python 2
+except NameError:
+    unicode = str  # Python 3
+
 IS_PYTHON2 = int(sys.version[0]) == 2
 
 DATASETS = [
