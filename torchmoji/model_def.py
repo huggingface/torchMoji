@@ -215,7 +215,7 @@ class TorchMoji(nn.Module):
         x = self.embed_dropout(x)
 
         # Update packed sequence data for RNN
-        packed_input = PackedSequence(data=x, batch_sizes=packed_input.batch_sizes)
+        packed_input = PackedSequence(x, packed_input.batch_sizes)
 
         # skip-connection from embedding to output eases gradient-flow and allows access to lower-level features
         # ordering of the way the merge is done is important for consistency with the pretrained model
@@ -223,10 +223,10 @@ class TorchMoji(nn.Module):
         lstm_1_output, _ = self.lstm_1(lstm_0_output, hidden)
 
         # Update packed sequence data for attention layer
-        packed_input = PackedSequence(data=torch.cat((lstm_1_output.data,
-                                                      lstm_0_output.data,
-                                                      packed_input.data), dim=1),
-                                      batch_sizes=packed_input.batch_sizes)
+        packed_input = PackedSequence(torch.cat((lstm_1_output.data,
+                                                 lstm_0_output.data,
+                                                 packed_input.data), dim=1),
+                                      packed_input.batch_sizes)
 
         input_seqs, _ = pad_packed_sequence(packed_input, batch_first=True)
 
