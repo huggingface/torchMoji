@@ -29,6 +29,7 @@ class Attention(Module):
         self.return_attention = return_attention
         self.attention_size = attention_size
         self.attention_vector = Parameter(torch.FloatTensor(attention_size))
+        self.attention_vector.data.normal_(std=0.05) # Initialize attention vector
 
     def __repr__(self):
         s = '{name}({attention_size}, return attention={return_attention})'
