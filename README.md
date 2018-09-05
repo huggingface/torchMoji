@@ -1,3 +1,8 @@
+### ------ Update September 2018 ------
+It's been a year since TorchMoji and DeepMoji were released. We're trying to understand how it's being used such that we can make improvements and design better models in the future. 
+
+You can help us achieve this by answering this [4-question Google Form](https://docs.google.com/forms/d/e/1FAIpQLSe1h4NSQD30YM8dsbJQEnki-02_9KVQD34qgP9to0bwAHBvBA/viewform "DeepMoji Google Form"). Thanks for your support!
+
 # torchMoji
 
 > **Read our blog post about the implementation process [here](https://medium.com/huggingface/understanding-emotions-from-keras-to-pytorch-3ccb61d5a983).**
