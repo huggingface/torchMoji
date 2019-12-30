@@ -31,22 +31,20 @@ Assuming you have [Conda](https://conda.io) installed, run:
 
 ```bash
 conda create -n torchMoji -f environment.yml
+conda activate torchMoji
+pip install -e .
 ```
 
 This will install the following dependencies:
+
 * [PyTorch](https://pytorch.org)
 * [scikit-learn](https://github.com/scikit-learn/scikit-learn)
 * [text-unidecode](https://github.com/kmike/text-unidecode)
 * [emoji](https://github.com/carpedm20/emoji)
 
+If you do not want to use Conda, please install `torch==1.3.1` from PIP and then run `pip install -e .` from the root directory (don't forget to set up a virtual environment).
+
 At the present stage the model can't make efficient use of CUDA. See details in the [Hugging Face blog post](https://medium.com/huggingface/understanding-emotions-from-keras-to-pytorch-3ccb61d5a983).
-
-When pyTorch is installed, run the following in the root directory:
-
-```bash
-conda activate torchMoji
-pip install -e .
-```
 
 Then, run the download script to downloads the pretrained torchMoji weights (~85MB) from [here](https://www.dropbox.com/s/q8lax9ary32c7t9/pytorch_model.bin?dl=0) and put them in the model/ directory:
 
