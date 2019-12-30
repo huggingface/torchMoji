@@ -177,10 +177,8 @@ class TorchMoji(nn.Module):
         """
         # Check if we have Torch.LongTensor inputs or not Torch.Variable (assume Numpy array in this case), take note to return same format
         return_numpy = False
-        return_tensor = False
         if isinstance(input_seqs, (torch.LongTensor, torch.cuda.LongTensor)):
             input_seqs = Variable(input_seqs)
-            return_tensor = True
         elif not isinstance(input_seqs, Variable):
             input_seqs = Variable(torch.from_numpy(input_seqs.astype('int64')).long())
             return_numpy = True
@@ -246,8 +244,6 @@ class TorchMoji(nn.Module):
             outputs = reorered
 
         # Adapt return format if needed
-        if return_tensor:
-            outputs = outputs.data
         if return_numpy:
             outputs = outputs.data.numpy()
 
