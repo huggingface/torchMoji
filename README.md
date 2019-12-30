@@ -27,23 +27,26 @@ Please consider citing the [paper](https://arxiv.org/abs/1708.00524) of DeepMoji
 
 ## Installation
 
-We assume that you're using [Python 2.7-3.5](https://www.python.org/downloads/) with [pip](https://pip.pypa.io/en/stable/installing/) installed.
-
-First you need to install [pyTorch (version 0.2+)](http://pytorch.org/), currently by:
-```bash
-conda install pytorch -c pytorch
-```
-At the present stage the model can't make efficient use of CUDA. See details in the [Hugging Face blog post](https://medium.com/huggingface/understanding-emotions-from-keras-to-pytorch-3ccb61d5a983).
-
-When pyTorch is installed, run the following in the root directory to install the remaining dependencies:
+Assuming you have [Conda](https://conda.io) installed, run:
 
 ```bash
-pip install -e .
+conda create -n torchMoji -f environment.yml
 ```
+
 This will install the following dependencies:
+* [PyTorch](https://pytorch.org)
 * [scikit-learn](https://github.com/scikit-learn/scikit-learn)
 * [text-unidecode](https://github.com/kmike/text-unidecode)
 * [emoji](https://github.com/carpedm20/emoji)
+
+At the present stage the model can't make efficient use of CUDA. See details in the [Hugging Face blog post](https://medium.com/huggingface/understanding-emotions-from-keras-to-pytorch-3ccb61d5a983).
+
+When pyTorch is installed, run the following in the root directory:
+
+```bash
+conda activate torchMoji
+pip install -e .
+```
 
 Then, run the download script to downloads the pretrained torchMoji weights (~85MB) from [here](https://www.dropbox.com/s/q8lax9ary32c7t9/pytorch_model.bin?dl=0) and put them in the model/ directory:
 
