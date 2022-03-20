@@ -75,7 +75,7 @@ class LSTMHardSigmoid(Module):
     def forward(self, input, hx=None):
         is_packed = isinstance(input, PackedSequence)
         if is_packed:
-            input, batch_sizes = input
+            input, batch_sizes ,_ ,_ = input
             max_batch_size = batch_sizes[0]
         else:
             batch_sizes = None
