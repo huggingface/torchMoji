@@ -53,7 +53,7 @@ if download:
         #    f.write(requests.get(weights_download_link).content)
 
         # downloading using wget due to issues with urlretrieve and requests
-        sys_call = 'curl {} -O {}'.format(weights_download_link, os.path.abspath(weights_path))
+        sys_call = 'wget {} -O {}'.format(weights_download_link, os.path.abspath(weights_path))
         print("Running system call: {}".format(sys_call))
         call(sys_call, shell=True)
 
