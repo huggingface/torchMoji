@@ -1,7 +1,31 @@
 from text_emojize import predict_emoji_from_text
 import pandas as pd
+import DALI as dali_code
 
 # demo_dataset = pd.DataFrame(columns=["Audio", "Lyrics", "Best_emoji","Top_5_emojis"])
+# import DALI as dali_code
+dali_data_path = '/Users/amanshukla/Downloads/DALI_v1.0'
+
+# Format of dali_info : array(['UNIQUE_DALI_ID', 'ARTIST NAME-SONG NAME', 'YOUTUBE LINK', 'WORKING/NOT WORKING'])
+dali_info = dali_code.get_info(dali_data_path + '/info/DALI_DATA_INFO.gz')
+# print(dali_info[1])
+
+# Reading DALI data 
+dali_data = dali_code.get_the_DALI_dataset(dali_data_path, skip=[], keep=[])
+
+# Type of dali_data = dict with keys = unique dali_id and value = Annotation object
+print(type(dali_data),len(dali_data))
+
+# can be changed from lines -> words / paragraphs
+lines_lyric_set = dali_data['fffdba22ae1647a2910541b4d4ec3bed'].annotations['annot']['lines']
+lines_in_song = len(lines_lyric_set)
+
+# print(lines_lyric_set)
+for i in range(lines_in_song):
+    lyrics_for_line = lines_lyric_set[i]['text']
+    predict_emoji_from_text(lyrics_for_line)
+
+
 
 
 create_samples = [
@@ -74,6 +98,6 @@ create_samples = [
 ]
 
 
-for lyric in create_samples:
-    print("---------------------Next Sample-----------------------")
-    predict_emoji_from_text(lyric)
+# for lyric in create_samples:
+#     print("---------------------Next Sample-----------------------")
+#     predict_emoji_from_text(lyric)
