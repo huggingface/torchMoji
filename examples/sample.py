@@ -1,24 +1,27 @@
 from text_emojize import predict_emoji_from_text
 import pandas as pd
 import DALI as dali_code
+# import DALI as dali_code
+dali_data_path = '/Users/amanshukla/Downloads/DALI_v1.0'
 
-# # import DALI as dali_code
-# dali_data_path = '/Users/amanshukla/Downloads/DALI_v1.0'
 
-# # Format of dali_info : array(['UNIQUE_DALI_ID', 'ARTIST NAME-SONG NAME', 'YOUTUBE LINK', 'WORKING/NOT WORKING'])
-# dali_info = dali_code.get_info(dali_data_path + '/info/DALI_DATA_INFO.gz')
-# # print(dali_info[1])
+# Reading DALI data 
+dali_data = dali_code.get_the_DALI_dataset(dali_data_path, skip=[], keep=[])
 
-# # Reading DALI data 
-# dali_data = dali_code.get_the_DALI_dataset(dali_data_path, skip=[], keep=[])
 
-# # Type of dali_data = dict with keys = unique dali_id and value = Annotation object
-# # print(type(dali_data),len(dali_data))
+# ea3414d65ba84ec1b9e8aa74ec586434
+song_info = dali_data['ea3414d65ba84ec1b9e8aa74ec586434'].info
+song_artist, song_title, song_url, song_lang = song_info['artist'], song_info[
+    'title'], "https://www.youtube.com/watch?v=" + song_info['audio']['url'], song_info['metadata']['language']
 
+print("Artist: {}, Song: {}, Audio: {}, Language: {}".format(
+    song_artist, song_title, song_url, song_lang))
+
+# print(dali_data.keys())
 # for key in dali_data.keys(): 
 
 #     # can be changed from lines -> words / paragraphs
-#     lines_lyric_set = dali_data[key].annotations['annot']['lines']
+#     lines_lyric_set = dali_data[key].annotations['annot']['paragraphs']
 #     lines_in_song = len(lines_lyric_set)
 
 #     song_info = dali_data[key].info
@@ -31,73 +34,10 @@ import DALI as dali_code
 #         lyrics_for_line = lines_lyric_set[i]['text']
 #         predict_emoji_from_text(lyrics_for_line)
 
+# create_samples = [
+#     ("https://www.youtube.com/watch?v=oytOOA9sOiE", "Take your Listen to my voice my disguise")]
 
-
-
-create_samples = [
-    ("https://www.youtube.com/watch?v=oytOOA9sOiE", "Take your Listen to my voice my disguise")
-    # ("https://www.youtube.com/watch?v=2vjPBrBU-TM", "Party girls don't get hurt \
-    #  Can't feel anything, when will I learn? \
-    #  I push it down, push it down \
-    #  I'm the one for a good time call \
-    #  Phone's blowin' up, ringin' my doorbell \
-    #  I feel the love, feel the love \
-    #  One, two, three, one, two, three, drink \
-    #  One, two, three, one, two, three, drink \
-    #  One, two, three, one, two, three, drink \
-    #  Throw 'em back 'til I lose count \
-    #  I'm gonna swing from the chandelier \
-    #  From the chandelier \
-    #  I'm gonna live like tomorrow doesn't exist \
-    #  Like it doesn't exist \
-    #  I'm gonna fly like a bird through the night \
-    #  Feel my tears as they dry \
-    #  I'm gonna swing from the chandelier \
-    #  From the chandelier"),
-    # ("https://www.youtube.com/watch?v=BciS5krYL80", "On a dark desert highway, cool wind in my hair \
-    #  Warm smell of colitas, rising up through the air\
-    #  Up ahead in the distance, I saw shimmering light\
-    #  My head grew heavy and my sight grew dim\
-    #  I had to stop for the night\
-    #  There she stood in the doorway\
-    #  I heard the mission bell\
-    #  And I was thinking to myself,\
-    #  'This could be Heaven or this could be Hell'\
-    #  Then she lit up a candle and she showed me the way\
-    #  There were voices down the corridor,\
-    #  I thought I heard them say..."),
-    # ("https://www.youtube.com/watch?v=nfs8NYg7yQM", "I know that dress is karma, perfume regret \
-    #  You got me thinking 'bout when you were mine, oh \
-    #  And now I'm all up on ya, what you expect?\
-    #  But you're not coming home with me tonight\
-    #  You just want attention, you don't want my heart\
-    #  Maybe you just hate the thought of me with someone new\
-    #  Yeah, you just want attention, I knew from the start\
-    #  You're just making sure I'm never gettin' over you\
-    #  you've been runnin' round, runnin' round, runnin' round throwing that dirt all on my name\
-    #  'Cause you knew that I, knew that I, knew that I'd call you up\
-    #  Baby, now that we're, now that we're, now that we're right here standing face-to-face\
-    #  You already know, already know, already know that you won, oh"),
-    # ("https://www.youtube.com/watch?v=RgKAFK5djSk", "It's been a long day without you, my friend\
-    #  And I'll tell you all about it when I see you again\
-    #  We've come a long way from where we began\
-    #  Oh, I'll tell you all about it when I see you again\
-    #  When I see you again\
-    #  Damn, who knew?\
-    #  All the planes we flew, good things we been through\
-    #  That I'd be standing right here talking to you\
-    #  'Bout another path, I know we loved to hit the road and laugh\
-    #  But something told me that it wouldn't last\
-    #  Had to switch up, look at things different, see the bigger picture\
-    #  Those were the days, hard work forever pays\
-    #  Now I see you in a better place(see you in a better place)\
-    #  Uh\
-    #  How can we not talk about family when family's all that we got?\
-    #  Everything I went through, you were standing there by my side\
-    #  And now you gon' be with me for the last ride")
-]
-
-
-for lyric in create_samples:
-    print("---------------------Next Sample-----------------------")
-    predict_emoji_from_text(lyric[1])
+#Any analysis on lyric based emoji prediction
+# for lyric in create_samples:
+#     print("---------------------Next Sample-----------------------")
+#     predict_emoji_from_text(lyric[1])
