@@ -62,7 +62,7 @@ def predict_emoji_from_text(text, max_length=30):
     # tokenized, _, _ = st.tokenize_sentences([args.text])
     tokenized, _, _ = st.tokenize_sentences([text])
 
-    print("text = ", text)
+    # print("text = ", text)
 
     model_returns = model(tokenized)
 
@@ -80,8 +80,12 @@ def predict_emoji_from_text(text, max_length=30):
     # Top emoji id
     emoji_ids = top_elements(prob, 5)
 
-    # map to emojis
-    emojis = map(lambda x: EMOJIS[x], emoji_ids)
+    # print(emoji_ids,type(emoji_ids))
 
-    print("Lyrics : {tex}, Emojis: {pred}".format(
-        tex=text, pred=emoji.emojize("{}".format(' '.join(emojis)), use_aliases=True)))
+    # map to emojis
+    # emojis = map(lambda x: EMOJIS[x], emoji_ids)
+
+    # print("Lyrics : {tex}, Emojis: {pred}".format(
+    #     tex=text, pred=emoji.emojize("{}".format(' '.join(emojis)), use_aliases=True)))
+
+    return emoji_ids
