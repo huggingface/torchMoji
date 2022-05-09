@@ -20,14 +20,14 @@ IS_PYTHON2 = int(sys.version[0]) == 2
 
 OUTPUT_PATH = 'coverage.csv'
 DATASET_PATHS = [
-    '../data/Olympic/raw.pickle',
-    '../data/PsychExp/raw.pickle',
-    '../data/SCv1/raw.pickle',
-    '../data/SCv2-GEN/raw.pickle',
-    '../data/SE0714/raw.pickle',
+    # '../data/Olympic/raw.pickle',
+    # '../data/PsychExp/raw.pickle',
+    # '../data/SCv1/raw.pickle',
+    # '../data/SCv2-GEN/raw.pickle',
+    # '../data/SE0714/raw.pickle',
     #'../data/SE1604/raw.pickle', # Excluded due to Twitter's ToS
     '../data/SS-Twitter/raw.pickle',
-    '../data/SS-Youtube/raw.pickle',
+    # '../data/SS-Youtube/raw.pickle',
     ]
 
 with open('../model/vocabulary.json', 'r') as f:
@@ -78,7 +78,7 @@ for p in DATASET_PATHS:
 
     results.append(coverage_result)
 
-with open(OUTPUT_PATH, 'wb') as csvfile:
+with open(OUTPUT_PATH, 'w') as csvfile:
     writer = csv.writer(csvfile, delimiter='\t', lineterminator='\n')
     writer.writerow(['Dataset', 'Own', 'Last', 'Full'])
     for i, row in enumerate(results):

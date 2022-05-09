@@ -4,6 +4,7 @@
 """
 
 from __future__ import print_function, division, unicode_literals
+from http.client import MOVED_PERMANENTLY
 import example_helper
 import json
 import csv
@@ -31,33 +32,60 @@ EMOJIS = ":joy: :unamused: :weary: :sob: :heart_eyes: \
 :angry: :no_good: :muscle: :facepunch: :purple_heart: \
 :sparkling_heart: :blue_heart: :grimacing: :sparkles:".split(' ')
 
+
 def top_elements(array, k):
     ind = np.argpartition(array, -k)[-k:]
     return ind[np.argsort(array[ind])][::-1]
 
-if __name__ == "__main__":
-    argparser = argparse.ArgumentParser()
-    argparser.add_argument('--text', type=str, required=True, help="Input text to emojize")
-    argparser.add_argument('--maxlen', type=int, default=30, help="Max length of input text")
-    args = argparser.parse_args()
+# creating sample function for usage.
+
+
+def predict_emoji_from_text(text, max_length=30):
+
+    # if __name__ == "__main__":
+    #     argparser = argparse.ArgumentParser()
+    #     argparser.add_argument('--text', type=str, required=True, help="Input text to emojize")
+    #     argparser.add_argument('--maxlen', type=int, default=30, help="Max length of input text")
+    #     args = argparser.parse_args()
 
     # Tokenizing using dictionary
     with open(VOCAB_PATH, 'r') as f:
         vocabulary = json.load(f)
 
-    st = SentenceTokenizer(vocabulary, args.maxlen)
+    # st = SentenceTokenizer(vocabulary, args.maxlen)
+    st = SentenceTokenizer(vocabulary, max_length)
 
     # Loading model
-    model = torchmoji_emojis(PRETRAINED_PATH)
+    # Toggle to get attention layer outputs
+    model = torchmoji_emojis(PRETRAINED_PATH, False)
     # Running predictions
-    tokenized, _, _ = st.tokenize_sentences([args.text])
-    # Get sentence probability
-    prob = model(tokenized)[0]
+    # tokenized, _, _ = st.tokenize_sentences([args.text])
+    tokenized, _, _ = st.tokenize_sentences([text])
+
+    # print("text = ", text)
+
+    model_returns = model(tokenized)
+
+    # If attention layer outputs are not requested.
+    if len(model_returns) == 1:
+        # Get sentence probability
+        # represents probability of each emoji wrt to tokenized text
+        prob = model_returns[0]
+    else:
+        prob = model_returns[0][0]
+        attention_layer_output = model_returns[1]
+        print("Attention weights = ", attention_layer_output.tolist()
+              [0], "Sum = ", sum(attention_layer_output.tolist()[0]))
 
     # Top emoji id
     emoji_ids = top_elements(prob, 5)
 
-    # map to emojis
-    emojis = map(lambda x: EMOJIS[x], emoji_ids)
+    # print(emoji_ids,type(emoji_ids))
 
-    print(emoji.emojize("{} {}".format(args.text,' '.join(emojis)), use_aliases=True))
+    # map to emojis
+    # emojis = map(lambda x: EMOJIS[x], emoji_ids)
+
+    # print("Lyrics : {tex}, Emojis: {pred}".format(
+    #     tex=text, pred=emoji.emojize("{}".format(' '.join(emojis)), use_aliases=True)))
+
+    return emoji_ids

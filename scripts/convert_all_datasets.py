@@ -22,14 +22,14 @@ except NameError:
 IS_PYTHON2 = int(sys.version[0]) == 2
 
 DATASETS = [
-    'Olympic',
-    'PsychExp',
-    'SCv1',
-    'SCv2-GEN',
-    'SE0714',
+    # 'Olympic',
+    # 'PsychExp',
+    # 'SCv1',
+    # 'SCv2-GEN',
+    # 'SE0714',
     #'SE1604', # Excluded due to Twitter's ToS
     'SS-Twitter',
-    'SS-Youtube',
+    # 'SS-Youtube',
     ]
 
 DIR = '../data'
@@ -64,7 +64,7 @@ def convert_dataset(filepath, extend_with, vocab):
                                                   extend_with=extend_with)
     pick = format_pickle(dset, tokenized[0], tokenized[1], tokenized[2],
                         dicts[0], dicts[1], dicts[2])
-    with open(filepath, 'w') as f:
+    with open(filepath, 'wb') as f:
         pickle.dump(pick, f)
     cover = coverage(tokenized[2])
 
