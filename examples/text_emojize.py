@@ -4,6 +4,7 @@
 """
 
 from __future__ import print_function, division, unicode_literals
+from cgitb import text
 from http.client import MOVED_PERMANENTLY
 import example_helper
 import json
@@ -42,12 +43,9 @@ def top_elements(array, k):
 
 def predict_emoji_from_text(text, max_length=30):
 
-    # if __name__ == "__main__":
-    #     argparser = argparse.ArgumentParser()
-    #     argparser.add_argument('--text', type=str, required=True, help="Input text to emojize")
-    #     argparser.add_argument('--maxlen', type=int, default=30, help="Max length of input text")
-    #     args = argparser.parse_args()
-
+    # print("Printing text = ",text)
+    if len(text) == 0 or text == 'eos':
+        return -1
     # Tokenizing using dictionary
     with open(VOCAB_PATH, 'r') as f:
         vocabulary = json.load(f)
@@ -78,14 +76,39 @@ def predict_emoji_from_text(text, max_length=30):
               [0], "Sum = ", sum(attention_layer_output.tolist()[0]))
 
     # Top emoji id
-    emoji_ids = top_elements(prob, 5)
+    emoji_ids = top_elements(prob, 7)
 
     # print(emoji_ids,type(emoji_ids))
 
+    # Removing music emoji's from predictions
+    process_list = list(emoji_ids)
+    if 48 in process_list and 11 in process_list:
+        idx1 = process_list.index(48)
+        idx2 = process_list.index(11)
+        emoji_ids = np.delete(emoji_ids, [idx1,idx2])
+
+    elif 48 in process_list:
+        idx1 = process_list.index(48)
+        emoji_ids = np.delete(emoji_ids, idx1)
+    
+    elif 11 in process_list:
+        idx2 = process_list.index(11)
+        emoji_ids = np.delete(emoji_ids, idx2)
+        
+
+    # print(emoji_ids, type(emoji_ids))
     # map to emojis
     # emojis = map(lambda x: EMOJIS[x], emoji_ids)
 
     # print("Lyrics : {tex}, Emojis: {pred}".format(
     #     tex=text, pred=emoji.emojize("{}".format(' '.join(emojis)), use_aliases=True)))
 
-    return emoji_ids
+    return emoji_ids[0]
+
+# if __name__ == "__main__":
+#     argparser = argparse.ArgumentParser()
+#     argparser.add_argument('--text', type=str, required=True, help="Input text to emojize")
+#     argparser.add_argument('--maxlen', type=int, default=30, help="Max length of input text")
+#     args = argparser.parse_args()
+
+#     predict_emoji_from_text(args.text)
