@@ -41,7 +41,7 @@ def top_elements(array, k):
 # creating sample function for usage.
 
 
-def predict_emoji_from_text(text, max_length=30):
+def predict_emoji_from_text(text, single_label=True, max_length=30):
 
     # print("Printing text = ",text)
     if len(text) == 0 or text == 'eos':
@@ -102,8 +102,10 @@ def predict_emoji_from_text(text, max_length=30):
 
     # print("Lyrics : {tex}, Emojis: {pred}".format(
     #     tex=text, pred=emoji.emojize("{}".format(' '.join(emojis)), use_aliases=True)))
-
-    return emoji_ids[0]
+    if single_label:    
+        return emoji_ids[0]
+    
+    return emoji_ids[:5]
 
 # if __name__ == "__main__":
 #     argparser = argparse.ArgumentParser()
