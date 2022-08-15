@@ -1,9 +1,5 @@
-from cgitb import grey
-from random import shuffle
+from cgi import test
 import pandas as pd
-from skmultilearn.problem_transform import ClassifierChain
-from sklearn.neural_network import MLPClassifier
-import imp
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.nn as nn
@@ -13,16 +9,14 @@ from sklearn.metrics import f1_score
 import numpy as np
 import torchvision.transforms as transforms
 import torch
-from sklearn.model_selection import train_test_split
 import time
 import warnings
-import glob
 import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore")
 from skimage import io, transform
 import os
-from label_data import IMAGE_PATH
-from label_data import multi_label
+# from label_data import IMAGE_PATH
+
 from random_model import return_valid_frame
 
 
@@ -36,7 +30,7 @@ class SpectrogramDataset(Dataset):
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
-        self.music_frame = return_valid_frame(pd.read_csv(csv_file))
+        self.music_frame = return_valid_frame(pd.read_csv(csv_file),root_dir)
         self.root_dir = root_dir
         self.transform = transform
 
@@ -48,7 +42,7 @@ class SpectrogramDataset(Dataset):
             idx = idx.tolist()
 
         img_name = os.path.join(self.root_dir,self.music_frame.iloc[idx, 0]+'.png')
-        image = io.imread(img_name, as_gray=True)
+        image = io.imread(img_name, as_gray=False)
 
         # One-hot encoded label from 2nd col onwards
         emo_lab = self.music_frame.iloc[idx, 2:]
@@ -57,7 +51,7 @@ class SpectrogramDataset(Dataset):
         sample = {'image': image, 'emo_lab': emo_lab}
 
         if self.transform:
-            sample = self.transform(sample)
+            sample['image'] = self.transform(sample['image'])
 
         return sample
 
@@ -74,8 +68,14 @@ class ToTensor(object):
         # numpy image: H x W x C
         # torch image: C x H x W
         # image = image.transpose((2, 0, 1))
-        return {'image': torch.from_numpy(image).to(torch.float32).to(self.device),
-                'emo_lab': torch.from_numpy(emo_lab).to(self.device)}
+        # T = transforms.Resize(size=(30,40))
+        # image = T(image)
+        # Uncomment to use GPU
+        # return {'image': torch.from_numpy(image).to(torch.float32).to(self.device),
+        #         'emo_lab': torch.from_numpy(emo_lab).to(self.device)}
+        
+        return {'image': torch.from_numpy(image),
+                'emo_lab': torch.from_numpy(emo_lab)}
 
 # Model Definition
 
@@ -83,23 +83,27 @@ class Net(nn.Module):
     def __init__(self, labels):
         super().__init__()
         self.flatten = nn.Flatten()
-        # self.conv1 = nn.Conv2d(4, 6, 5)
-        # self.pool = nn.MaxPool2d(2, 2)
-        # self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(480*640, 10250)
-        self.fc2 = nn.Linear(10250, 840)
-        self.fc3 = nn.Linear(840, labels)
-        self.softmax = nn.Softmax(dim=1)
+        self.conv1 = nn.Conv2d(4, 6, 5)
+        self.pool = nn.MaxPool2d(2,2)
+        self.conv2 = nn.Conv2d(6, 8, 5)
+        # Original Dimension = 16*117*157
+        #Resized (64,128) = 16*13*29
+        self.fc1 = nn.Linear(117*157*8, 1020)
+        # Commented out due to memory issues on GPU
+        self.fc2 = nn.Linear(1020, 300)
+        self.fc3 = nn.Linear(300, labels)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
+        
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
         x = self.flatten(x)
-        # x = self.pool(F.relu(self.conv1(x)))
-        # x = self.pool(F.relu(self.conv2(x)))
-        # x = torch.flatten(x, 1)  # flatten all dimensions except batch
+        # x = self.flatten(x, 1)  # flatten all dimensions except batch
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        x = self.softmax(x)
+        x = F.relu(self.fc3(x))
+        x = self.sigmoid(x)
         return x
 
 
@@ -136,90 +140,41 @@ def random_accuracy_check():
 
     # print(f"Random set accuracy calculated using formula = {accurate}")
 
-def model_training():
-
-    device = torch.device('mps')
-
-    # Load images and emoji labels
-    music_dataset = SpectrogramDataset('real.csv', IMAGE_PATH,
-                                        transform=transforms.Compose([ToTensor(device)]))
-
-    # Fixed emoji labels to predict
-    LABELS = 61
-    # Create a train,validation and test split of the dataset
-    dataset_size = len(music_dataset)
-    train_split = int(0.7*dataset_size)
-    val_split = int(0.2*dataset_size)
-    test_split = dataset_size - (train_split+val_split)
-
-    # print(dataset_size, train_split, val_split, test_split)
-
-    train_sampler, val_sampler, test_sampler = random_split(music_dataset,
-                                                         [train_split, val_split, test_split])
-
-    train_dataloader = DataLoader(train_sampler, batch_size=1, shuffle=True)
-    val_dataloader = DataLoader(val_sampler, batch_size=1, shuffle=True)
-    test_dataloader = DataLoader(test_sampler, batch_size=1, shuffle=True)
-
-    # dataiter = iter(train_dataloader)
-    # images, labels = dataiter.next()['image'],dataiter.next()['emo_lab']
-
-    # Display batched images
-    # io.imshow_collection(torchvision.utils.make_grid(images))
-    # io.show()
-    # print(images.shape, labels.shape)
+def model_training(LABELS, device, train_dataloader, epochs):
     
     # Declare/Initialize model
     net = Net(labels=LABELS)
 
     net.to(device)
 
-    criterion = nn.MultiLabelMarginLoss()
-    optimizer = optim.Adam(net.parameters(), lr=0.01)
+    # Ref: https://stackoverflow.com/questions/64634902/best-loss-function-for-multi-class-multi-target-classification-problem
+    # criterion = nn.MultiLabelMarginLoss()
+    # criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.BCELoss()
+
+    optimizer = optim.Adam(net.parameters(), lr=0.001)
     traintime = time.time()
 
-    # optimizer.zero_grad()
 
-    # tre = net(images.float())
-
-    # labels = labels.squeeze(dim=1)
-    # labels = labels.long()
-    # print(tre.shape, labels.shape)
-
-
-    # print()
-
-    # l = criterion(tre, labels)
-
-    # l.backward()
-    # optimizer.step()
-
-    # print(type(l))
-    # print(l)
-
-
-    for epoch in range(2):  # loop over the dataset multiple times
+    for ep in range(epochs):  # loop over the dataset multiple times
         timeing = time.time()
         running_loss = 0.0
         for i, data in enumerate(train_dataloader):
             staring = time.time()
 
             # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data['image'], data['emo_lab']
-            # print(inputs.dtype)
-            # inputs = inputs.to(torch.float32).to(device)
-            # labels = labels.to(device)
-            # print(inputs.shape, labels.shape)
+            inputs, label = data['image'], data['emo_lab']
+
+            inputs = inputs.to(device)
+            label = label.to(device)
+
             # zero the parameter gradients
             optimizer.zero_grad()
 
-            # forward + backward + optimize
             outputs = net(inputs.float())
-            # outputs = outputs.type(torch.float64)
-            labels = labels.squeeze(dim=1)
-            labels = labels.long()
+            label = label.squeeze(dim=1)
 
-            loss = criterion(outputs, labels)
+            loss = criterion(outputs, label)
             
             loss.backward()
             optimizer.step()
@@ -227,51 +182,170 @@ def model_training():
             # print statistics
             running_loss += loss.item()
 
-            # if i % 2000 == 1999:    # print every 2000 mini-batches    
-            print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss:.3f}')
-                # running_loss = 0.0
+            if i % 100 == 0:    
+                print(f'[{ep + 1}, {i + 1:5d}] loss: {running_loss/len(train_dataloader):.3f}')
 
-            print(f"Time for 1 batch = {time.time() - staring}")
-        print(f"Time for 1 epoch = {time.time() - timeing}")
+        # if ep % 5 == 0:        
+        #     # Save model here for re-use and testing
+        #     torch.save(net.state_dict(), f"/Users/amanshukla/miniforge3/torchMoji/model/train_trial_sgd{ep}.ckpt")
 
     print('Finished Training')
     print(f"Time for training = {time.time()-traintime}")
 
-    # # Save model here for re-use and testing
-    # torch.save(net.state_dict(), "/Users/amanshukla/miniforge3/torchMoji/model/")
+    # Save model here for re-use and testing
+    torch.save(net.state_dict(), f"/Users/amanshukla/miniforge3/torchMoji/model/temp_adam.ckpt")
+
+    # correct = 0
+    # total = 0
+    # # since we're not training, we don't need to calculate the gradients for our outputs
+    # with torch.no_grad():
+    #     for data in test_dataloader:
+    #         images, labels = data['image'], data['emo_lab']
+    #         # calculate outputs by running images through the network
+    #         # images = images.permute(0, 3, 1, 2)
+    #         images = images.to(device)
+    #         labels = labels.to(device)
+    #         labels = labels.squeeze(dim=1)
+    #         outputs = net(images.float())
+    #         # the class with the highest energy is what we choose as prediction
+    #         # _, predicted = torch.max(outputs.data, 1)
+    #         # total += labels.size(0)
+    #         # correct += (predicted == labels).sum().item()
+    #         # correct += (outputs == labels).sum().item()
+    #         # outputs = torch.nan_to_num(outputs)
+    #         # score = f1_score(labels, outputs)
+
+    #         _, pred_ind = torch.topk(outputs,5)
+            
+
+    #         _, tru_ind = torch.topk(labels,5)
+
+
+
+    #         score = (tru_ind == pred_ind).float().mean()
+            
+    #         pred_ind = pred_ind.cpu()
+    #         tru_ind = tru_ind.cpu()
+    #         # print(tru_ind)
+    #         # print(pred_ind)
+    #         batch_acc = 0
+    #         for i in range(tru_ind.shape[0]):
+    #             overlap = np.intersect1d(tru_ind[i], pred_ind[i])
+    #             # print(tru_ind[i], pred_ind[i],overlap)
+    #             batch_acc += len(overlap)/5
+
+            
+            
+
+    #         # pred_ind = pred_ind.cpu().numpy()
+    #         # tru_ind = tru_ind.cpu().numpy()
+    #         # overlap = np.intersect1d(tru_ind, pred_ind)
+    #         # val = len(overlap) / 5
+    #         # print(overlap)
+    #         # print(val)
+    #         total += score
+    #         correct += batch_acc/tru_ind.shape[0]
+
+    #         # print(correct)
+
+    #         # print(correct)
+    #         # print(f'Mean Score is {score}')
+
+
+
+    # # print(f'Accuracy of the network on the test images: {100 * correct // total} %')
+    # print(f'Mean accuracy of the network on the test set (index based) is {(total / len(test_dataloader))* 100}%')
+    # print(f'Mean accuracy of the network on the test set (intersection based) is {(correct / len(test_dataloader))* 100}%')
+
+def model_test(LABELS, test_dataloader):
+
+    net = Net(labels=LABELS)
+    net.load_state_dict(torch.load("/Users/amanshukla/miniforge3/torchMoji/model/train_trial_sgd0.ckpt"))
+
+    net.eval()
+
     correct = 0
     total = 0
     # since we're not training, we don't need to calculate the gradients for our outputs
     with torch.no_grad():
         for data in test_dataloader:
             images, labels = data['image'], data['emo_lab']
-            # calculate outputs by running images through the network
+
+            labels = labels.squeeze(dim=1)
             outputs = net(images.float())
-            # the class with the highest energy is what we choose as prediction
-            # _, predicted = torch.max(outputs.data, 1)
-            # total += labels.size(0)
-            # correct += (predicted == labels).sum().item()
-            # correct += (outputs == labels).sum().item()
-            # outputs = torch.nan_to_num(outputs)
-            # score = f1_score(labels, outputs)
 
             _, pred_ind = torch.topk(outputs,5)
-
             _, tru_ind = torch.topk(labels,5)
 
+            # print(f"Top predictions {pred_ind}")
+            
+            batch_acc = 0
+            for i in range(tru_ind.shape[0]):
+                overlap = np.intersect1d(tru_ind[i], pred_ind[i])
+                batch_acc += len(overlap)/5
+
+            # print(pred_ind)
+            # print(tru_ind)
+            
+            
             score = (tru_ind == pred_ind).float().mean()
 
             total += score
-            # print(f'Mean Score is {score}')
+            correct += batch_acc/tru_ind.shape[0]
 
 
-
-    # print(f'Accuracy of the network on the test images: {100 * correct // total} %')
-    print(f'Mean accuracy of the network on the test set is {(total / len(test_dataloader))* 100}%')
+    print(f'Mean accuracy of the network on the test set (index based) is {(total / len(test_dataloader))* 100}%')
+    print(f'Mean accuracy of the network on the test set (intersection based) is {(correct / len(test_dataloader))* 100}%')
 
 
 if __name__ == '__main__':
         
     # random_accuracy_check()
-    model_training()
+    device = torch.device('mps')
+
+    # Load images and emoji labels
+    # music_dataset = SpectrogramDataset('real.csv', IMAGE_PATH,
+    #                                     transform=transforms.Compose([
+    #                                         # transforms.ToPILImage(),
+    #                                         #                         transforms.Resize(size=(64,128)),
+    #                                                                 transforms.ToTensor()])) #ToTensor(device)
+
+
+
+
+    train_dataset = SpectrogramDataset('real.csv','data/image/train' ,
+                                        transform=transforms.Compose([transforms.ToTensor()])) #ToTensor(device)
+
+    val_dataset = SpectrogramDataset('real.csv','data/image/val' ,
+                                        transform=transforms.Compose([transforms.ToTensor()])) #ToTensor(device)
+
+    test_dataset = SpectrogramDataset('real.csv','data/image/test' ,
+                                        transform=transforms.Compose([transforms.ToTensor()])) #ToTensor(device)
+
+    # print(len(train_dataset))
+    # print(len(val_dataset))
+    # print(len(test_dataset))
+    # Fixed emoji labels to predict
+    LABELS = 61
+    # Create a train,validation and test split of the dataset
+    # dataset_size = len(music_dataset)
+    # train_split = int(0.7*dataset_size)
+    # val_split = int(0.2*dataset_size)
+    # test_split = dataset_size - (train_split+val_split)
+
+    # # print(dataset_size, train_split, val_split, test_split)
+
+    # train_sampler, val_sampler, test_sampler = random_split(music_dataset,
+    #                                                      [train_split, val_split, test_split])
+
+    train_dataloader = DataLoader(train_dataset, batch_size=512, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=512, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=512, shuffle=True)
+
+    # model_training(LABELS, device, train_dataloader, 5)
+    # model_training(LABELS, device, train_dataloader, 15)
+    # model_training(LABELS, device, train_dataloader, 15)
+    model_test(LABELS, train_dataloader)
+    model_test(LABELS, val_dataloader)
+    model_test(LABELS, test_dataloader)
 
