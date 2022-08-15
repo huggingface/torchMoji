@@ -20,7 +20,7 @@ SPLIT_SIZE = 15
 # AUDIO_PATH = "/Users/amanshukla/miniforge3/torchMoji/data"
 AUDIO_PATH = "/Volumes/TOSHIBA EXT/DALI/audios"
 # IMAGE_PATH = "/Volumes/TOSHIBA EXT/DALI/images"
-IMAGE_PATH = "/Users/amanshukla/miniforge3/torchMoji/data/image"
+# IMAGE_PATH = "/Users/amanshukla/miniforge3/torchMoji/data/image"
 
 labeling = DataFrame(columns=['image_id', 'emoji'])
 COUNTER=0
@@ -84,9 +84,9 @@ def convert_to_spectrogram(audio_sample_piece, piece_start_time, unique_song_id)
     return D, sample_rate
 
 
-def check_image_exists(unique_image_id):
+def check_image_exists(unique_image_id,path):
 
-    if glob.glob(IMAGE_PATH + f"/{unique_image_id}.png", recursive=True):
+    if glob.glob(path + f"/{unique_image_id}.png", recursive=True):
         return True
     
     return False
