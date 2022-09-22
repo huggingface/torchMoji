@@ -76,7 +76,7 @@ def predict_emoji_from_text(text, single_label=True, max_length=30):
               [0], "Sum = ", sum(attention_layer_output.tolist()[0]))
 
     # Top emoji id
-    emoji_ids = top_elements(prob, 7)
+    emoji_ids = top_elements(prob, 27) # change to 27
 
     # print(emoji_ids,type(emoji_ids))
 
@@ -105,7 +105,7 @@ def predict_emoji_from_text(text, single_label=True, max_length=30):
     if single_label:    
         return emoji_ids[0]
     
-    return emoji_ids[:5]
+    return emoji_ids[:25]
 
 # if __name__ == "__main__":
 #     argparser = argparse.ArgumentParser()
