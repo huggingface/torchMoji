@@ -1,4 +1,4 @@
-from cgi import test
+
 import pandas as pd
 import torch.optim as optim
 import torch.nn.functional as F
@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split, Dataset
 import torchvision
 from sklearn.metrics import f1_score
+from PIL import Image
 import numpy as np
 import torchvision.transforms as transforms
 import torch
@@ -13,11 +14,13 @@ import time
 import warnings
 import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore")
-from skimage import io, transform
+from skimage import io, transform as sktransform
 import os
+from pretrained import alex,densenet, inception
 # from label_data import IMAGE_PATH
-
+from sklearn.model_selection import GridSearchCV
 from random_model import return_valid_frame
+from skorch import NeuralNetClassifier
 
 
 class SpectrogramDataset(Dataset):
@@ -42,7 +45,11 @@ class SpectrogramDataset(Dataset):
             idx = idx.tolist()
 
         img_name = os.path.join(self.root_dir,self.music_frame.iloc[idx, 0]+'.png')
-        image = io.imread(img_name, as_gray=False)
+        # image = io.imread(img_name, as_gray=False)
+
+        image = Image.open(img_name).convert('RGB')
+        # image = sktransform.resize(image,(24,28))
+        # image = image.astype('float32')
 
         # One-hot encoded label from 2nd col onwards
         emo_lab = self.music_frame.iloc[idx, 2:]
@@ -51,31 +58,10 @@ class SpectrogramDataset(Dataset):
         sample = {'image': image, 'emo_lab': emo_lab}
 
         if self.transform:
-            sample['image'] = self.transform(sample['image'])
+            sample['image'] = self.transform((sample['image']))
+            # sample['image'] = sample['image'].unsqueeze(0)
 
         return sample
-
-class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
-
-    def __init__(self, device):
-        self.device = device
-
-    def __call__(self, sample):
-        image, emo_lab = sample['image'], sample['emo_lab']
-
-        # swap color axis because
-        # numpy image: H x W x C
-        # torch image: C x H x W
-        # image = image.transpose((2, 0, 1))
-        # T = transforms.Resize(size=(30,40))
-        # image = T(image)
-        # Uncomment to use GPU
-        # return {'image': torch.from_numpy(image).to(torch.float32).to(self.device),
-        #         'emo_lab': torch.from_numpy(emo_lab).to(self.device)}
-        
-        return {'image': torch.from_numpy(image),
-                'emo_lab': torch.from_numpy(emo_lab)}
 
 # Model Definition
 
@@ -83,21 +69,37 @@ class Net(nn.Module):
     def __init__(self, labels):
         super().__init__()
         self.flatten = nn.Flatten()
-        self.conv1 = nn.Conv2d(4, 6, 5)
+        self.conv1 = nn.Conv2d(4, 128, 5)
+        self.batchnorm1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(128, 512, 3)
+        self.batchnorm2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 128, 3)
+        self.batchnorm3 = nn.BatchNorm2d(128)
+        self.conv4 = nn.Conv2d(128, 256, 2)
+        self.batchnorm4 = nn.BatchNorm2d(256)
+        self.conv5 = nn.Conv2d(256, 512, 2)
+        self.batchnorm5 = nn.BatchNorm2d(512)
+
+
         self.pool = nn.MaxPool2d(2,2)
-        self.conv2 = nn.Conv2d(6, 8, 5)
-        # Original Dimension = 16*117*157
-        #Resized (64,128) = 16*13*29
-        self.fc1 = nn.Linear(117*157*8, 1020)
-        # Commented out due to memory issues on GPU
-        self.fc2 = nn.Linear(1020, 300)
-        self.fc3 = nn.Linear(300, labels)
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        
+        self.fc1 = nn.Linear(512, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, labels)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         
+        # x = self.batchnorm1(F.relu(self.pool(self.conv1(x))))
+        # x = self.batchnorm2(F.relu(self.pool(self.conv2(x))))
+        # x = self.batchnorm3(F.relu(self.pool(self.conv3(x))))
+        # x = self.batchnorm4(F.relu(self.pool(self.conv4(x))))
+        # x = self.batchnorm5(F.relu(self.pool(self.conv5(x))))
+        # x = self.pool(F.relu(self.conv2(x)))
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
+        x = self.avgpool(x)
         x = self.flatten(x)
         # x = self.flatten(x, 1)  # flatten all dimensions except batch
         x = F.relu(self.fc1(x))
@@ -140,16 +142,14 @@ def random_accuracy_check():
 
     # print(f"Random set accuracy calculated using formula = {accurate}")
 
-def model_training(LABELS, device, train_dataloader, epochs):
+def model_training(net, device, train_dataloader, epochs):
     
     # Declare/Initialize model
-    net = Net(labels=LABELS)
+    # net = Net(labels=LABELS)
+
 
     net.to(device)
 
-    # Ref: https://stackoverflow.com/questions/64634902/best-loss-function-for-multi-class-multi-target-classification-problem
-    # criterion = nn.MultiLabelMarginLoss()
-    # criterion = nn.BCEWithLogitsLoss()
     criterion = nn.BCELoss()
 
     optimizer = optim.Adam(net.parameters(), lr=0.001)
@@ -165,13 +165,15 @@ def model_training(LABELS, device, train_dataloader, epochs):
             # get the inputs; data is a list of [inputs, labels]
             inputs, label = data['image'], data['emo_lab']
 
+            # print(label.shape)
             inputs = inputs.to(device)
             label = label.to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
-            outputs = net(inputs.float())
+            outputs = net(inputs)
+            # outputs = torch.nn.functional.sigmoid(outputs)
             label = label.squeeze(dim=1)
 
             loss = criterion(outputs, label)
@@ -182,18 +184,18 @@ def model_training(LABELS, device, train_dataloader, epochs):
             # print statistics
             running_loss += loss.item()
 
-            if i % 100 == 0:    
-                print(f'[{ep + 1}, {i + 1:5d}] loss: {running_loss/len(train_dataloader):.3f}')
+            # if i % 100 == 0:    
+        print(f'[{ep + 1}, {i + 1:5d}] loss: {running_loss/len(train_dataloader):.3f}')
 
-        # if ep % 5 == 0:        
-        #     # Save model here for re-use and testing
-        #     torch.save(net.state_dict(), f"/Users/amanshukla/miniforge3/torchMoji/model/train_trial_sgd{ep}.ckpt")
+        if ep % 5 == 0:        
+            # Save model here for re-use and testing
+            torch.save(net.state_dict(), f"/Users/amanshukla/miniforge3/torchMoji/model/train_dense{ep}.ckpt")
 
     print('Finished Training')
     print(f"Time for training = {time.time()-traintime}")
 
     # Save model here for re-use and testing
-    torch.save(net.state_dict(), f"/Users/amanshukla/miniforge3/torchMoji/model/temp_adam.ckpt")
+    torch.save(net.state_dict(), f"/Users/amanshukla/miniforge3/torchMoji/model/t25.ckpt")
 
     # correct = 0
     # total = 0
@@ -257,27 +259,36 @@ def model_training(LABELS, device, train_dataloader, epochs):
     # print(f'Mean accuracy of the network on the test set (index based) is {(total / len(test_dataloader))* 100}%')
     # print(f'Mean accuracy of the network on the test set (intersection based) is {(correct / len(test_dataloader))* 100}%')
 
-def model_test(LABELS, test_dataloader):
-
-    net = Net(labels=LABELS)
-    net.load_state_dict(torch.load("/Users/amanshukla/miniforge3/torchMoji/model/train_trial_sgd0.ckpt"))
+def model_test(net, test_dataloader, topk):
+    
+    net.load_state_dict(torch.load("/Users/amanshukla/miniforge3/torchMoji/model/yup.ckpt",
+    map_location=torch.device('cpu')))
 
     net.eval()
-
+    
     correct = 0
     total = 0
     # since we're not training, we don't need to calculate the gradients for our outputs
     with torch.no_grad():
         for data in test_dataloader:
+            # print("Batching")
             images, labels = data['image'], data['emo_lab']
 
             labels = labels.squeeze(dim=1)
-            outputs = net(images.float())
+            # outputs = net(images.float())
+            # print(images.shape)
+            outputs = net(images)
+            # outputs = torch.nn.functional.sigmoid(outputs)
 
-            _, pred_ind = torch.topk(outputs,5)
-            _, tru_ind = torch.topk(labels,5)
 
-            # print(f"Top predictions {pred_ind}")
+            # print("Predictions = ",outputs)
+            # print("True = ", labels)
+
+
+            _, pred_ind = torch.topk(outputs,topk)
+            _, tru_ind = torch.topk(labels,topk)
+
+            # print(f"Top predictions {pred_ind}, {tru_ind}")
             
             batch_acc = 0
             for i in range(tru_ind.shape[0]):
@@ -297,55 +308,79 @@ def model_test(LABELS, test_dataloader):
     print(f'Mean accuracy of the network on the test set (index based) is {(total / len(test_dataloader))* 100}%')
     print(f'Mean accuracy of the network on the test set (intersection based) is {(correct / len(test_dataloader))* 100}%')
 
+    return (correct / len(test_dataloader))
 
 if __name__ == '__main__':
-        
+
     # random_accuracy_check()
     device = torch.device('mps')
+    # device='cpu'
 
     # Load images and emoji labels
-    # music_dataset = SpectrogramDataset('real.csv', IMAGE_PATH,
+    train_dataset = SpectrogramDataset('test_25_v4.csv','/Volumes/TOSHIBA/DALI/images/train' ,
+                                        transform=transforms.Compose([
+                                            transforms.Resize(256),
+                                            transforms.CenterCrop(224),
+                                            transforms.ToTensor(),
+                                            transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                            std=[0.229, 0.224, 0.225])]))
+
+    # val_dataset = SpectrogramDataset('real.csv','data/image/val' ,
     #                                     transform=transforms.Compose([
-    #                                         # transforms.ToPILImage(),
-    #                                         #                         transforms.Resize(size=(64,128)),
-    #                                                                 transforms.ToTensor()])) #ToTensor(device)
+    #                                         transforms.Resize(256),
+    #                                         transforms.CenterCrop(224),
+    #                                         transforms.ToTensor(),
+    #                                         transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+    #                                         std=[0.229, 0.224, 0.225])]))
 
+    test_dataset = SpectrogramDataset('test_25_v4.csv','/Volumes/TOSHIBA/DALI/images/test' ,
+                                        transform=transforms.Compose([
+                                            transforms.Resize(256),
+                                            transforms.CenterCrop(224),
+                                            transforms.ToTensor(),
+                                            transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                                            std=[0.229, 0.224, 0.225])]))
 
-
-
-    train_dataset = SpectrogramDataset('real.csv','data/image/train' ,
-                                        transform=transforms.Compose([transforms.ToTensor()])) #ToTensor(device)
-
-    val_dataset = SpectrogramDataset('real.csv','data/image/val' ,
-                                        transform=transforms.Compose([transforms.ToTensor()])) #ToTensor(device)
-
-    test_dataset = SpectrogramDataset('real.csv','data/image/test' ,
-                                        transform=transforms.Compose([transforms.ToTensor()])) #ToTensor(device)
-
-    # print(len(train_dataset))
-    # print(len(val_dataset))
-    # print(len(test_dataset))
     # Fixed emoji labels to predict
-    LABELS = 61
-    # Create a train,validation and test split of the dataset
-    # dataset_size = len(music_dataset)
-    # train_split = int(0.7*dataset_size)
-    # val_split = int(0.2*dataset_size)
-    # test_split = dataset_size - (train_split+val_split)
+    LABELS = 64
+    
+    train_dataloader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    # val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=128, shuffle=True)
 
-    # # print(dataset_size, train_split, val_split, test_split)
+    # net = Net(labels=LABELS)
 
-    # train_sampler, val_sampler, test_sampler = random_split(music_dataset,
-    #                                                      [train_split, val_split, test_split])
+    # Use Pretrained Alexnet
+    model = torch.hub.load('pytorch/vision:v0.10.0', 'densenet121', pretrained=True)
+    
+    net = densenet(model)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=512, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=512, shuffle=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=512, shuffle=True)
+    # print(sum([param.nelement() for param in net.parameters()]))
 
-    # model_training(LABELS, device, train_dataloader, 5)
-    # model_training(LABELS, device, train_dataloader, 15)
-    # model_training(LABELS, device, train_dataloader, 15)
-    model_test(LABELS, train_dataloader)
-    model_test(LABELS, val_dataloader)
-    model_test(LABELS, test_dataloader)
+    # model_training(net, device, train_dataloader, 0)
+    # model_test(LABELS, train_dataloader)
+
+    # acc = []
+    # for i in range(1,11):
+    #     acc.append(model_test(LABELS, test_dataloader,i))
+    
+    # plt.plot(acc)
+    # plt.show()
+
+
+    param = {
+        'max_epochs': [10,30,50],
+        'batch_size' : [128,256,512],
+        'lr' : [0.1,0.01,0.001]
+    }
+
+    model = NeuralNetClassifier(net)
+    cv = GridSearchCV(model, param)
+    # print(model.get_params().keys())
+    # print(cv.get_params().keys())
+    # X = SliceDataset(train_dataset,idx=0)
+    # y = SliceDataset(train_dataset,idx=1)
+    # print(type(y))
+    cv.fit(train_dataset, y=None)
+    # print(cv.best_score_, cv.best_params_)
 
