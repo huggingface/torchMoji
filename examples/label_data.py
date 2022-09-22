@@ -1,7 +1,9 @@
+from cProfile import label
+from operator import concat
 import DALI as dali_code
 # from examples.song import AUDIO_PATH
 from text_emojize import predict_emoji_from_text
-from pandas import DataFrame
+from pandas import DataFrame, get_dummies, Series,concat
 import matplotlib.pyplot as plt
 import numpy as np
 import librosa as lib
@@ -10,15 +12,20 @@ from pydub import AudioSegment
 import os
 import librosa.display as display
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 SPLIT_SIZE = 15
 # AUDIO_PATH = "/Users/amanshukla/miniforge3/torchMoji/data"
 AUDIO_PATH = "/Volumes/TOSHIBA EXT/DALI/audios"
-IMAGE_PATH = "/Volumes/TOSHIBA EXT/DALI/images"
-# IMAGE_PATH = "/Users/amanshukla/miniforge3/torchMoji/data"
+# IMAGE_PATH = "/Volumes/TOSHIBA EXT/DALI/images"
+# IMAGE_PATH = "/Users/amanshukla/miniforge3/torchMoji/data/image"
 
+labeling = DataFrame(columns=['image_id', 'emoji'])
+COUNTER=0
 
-def get_emoji_prediction(song_entry, audio_start_time, audio_end_time):
+def get_emoji_prediction(song_entry, audio_start_time, audio_end_time, single_label):
 
     # can be changed from lines -> words / paragraphs
     word_lyric_set = song_entry.annotations['annot']['words']
@@ -36,7 +43,7 @@ def get_emoji_prediction(song_entry, audio_start_time, audio_end_time):
     sentence = ''.join(collect)
 
     # Getting target emoji label from DeepMoji
-    target_label = predict_emoji_from_text(sentence)
+    target_label = predict_emoji_from_text(sentence, single_label)
 
     return target_label
 
@@ -46,10 +53,13 @@ def save_image_folder(matrix, sr, target, idx):
     # Create spectrogram
     display.specshow(matrix, sr=sr)
 
-    # Check if target directory exists
-    if not os.path.isdir(IMAGE_PATH + f'/{target}'):
-        os.makedirs(IMAGE_PATH + f'/{target}')
-    save_path = IMAGE_PATH + f'/{target}'
+    if target == -1:
+        save_path = IMAGE_PATH
+    else:    
+        # Check if target directory exists
+        if not os.path.isdir(IMAGE_PATH + f'/{target}'):
+            os.makedirs(IMAGE_PATH + f'/{target}')
+        save_path = IMAGE_PATH + f'/{target}'
     plt.savefig(save_path + f'/{idx}.png')
 
 
@@ -57,6 +67,7 @@ def convert_to_spectrogram(audio_sample_piece, piece_start_time, unique_song_id)
 
     # Bug : Cannot load an audio segment to make spectrogram
     # Fix: Export segment to mp3 temporarily and import from there
+    D, sample_rate = None, None
     if not os.path.isdir(AUDIO_PATH + '/temp_hold'):
         os.makedirs(AUDIO_PATH + '/temp_hold')
 
@@ -64,23 +75,25 @@ def convert_to_spectrogram(audio_sample_piece, piece_start_time, unique_song_id)
         f"/{unique_song_id}_{piece_start_time}.mp3"
     audio_sample_piece.export(audio_filename, format="mp4")
 
-    audio_buffer, sample_rate = lib.load(audio_filename, mono=True)
-    D = lib.amplitude_to_db(np.abs(lib.stft(audio_buffer)), ref=np.max)
-
+    try:    
+        audio_buffer, sample_rate = lib.load(audio_filename, mono=True)
+        D = lib.amplitude_to_db(np.abs(lib.stft(audio_buffer)), ref=np.max)
+    except:
+        # D, sample_rate = np.array(0.0).astype(float), np.array(0.0).astype(float)
+        print(f"Loading issue for {audio_filename}")
     return D, sample_rate
 
 
-def check_image_exists(unique_image_id):
+def check_image_exists(unique_image_id,path):
 
-    if glob.glob(IMAGE_PATH + f"/**/{unique_image_id}.png", recursive=True):
+    if glob.glob(path + f"/{unique_image_id}.png", recursive=True):
         return True
     
     return False
 
 
-
-def create_splits(mp3, song_entry, unique_song_id):
-
+def create_splits(mp3, song_entry, unique_song_id, single_label):
+    global COUNTER
     # Get length of audio
     song_length = mp3.duration_seconds
 
@@ -112,17 +125,33 @@ def create_splits(mp3, song_entry, unique_song_id):
                 image_matrix, sample_rate = convert_to_spectrogram(
                     piece, start_time, unique_song_id)
 
+                if image_matrix is None and sample_rate is None:
+                    start_time = ending_time
+                    num_of_split_samples -= 1
+                    continue
+
                 # Get emoji for the piece from lyric processing
                 top_emoji = get_emoji_prediction(
-                    song_entry, start_time, ending_time)
+                    song_entry, start_time, ending_time, single_label)
 
                 # Save the spectrogram image under corresponding emoji label
+                if single_label:    
+                    save_image_folder(image_matrix, sample_rate,
+                                    top_emoji, image_id)
 
-                save_image_folder(image_matrix, sample_rate,
-                                  top_emoji, image_id)
+                    # print(
+                    #     f"Successfully Saved ! Non - Empty piece {num_of_split_samples} from {start_time} to {ending_time} with matrix {image_matrix.shape} and sample rate {sample_rate} with emoji label {top_emoji}")
+                else:
+                    save_image_folder(image_matrix, sample_rate, -1, image_id)
+                    # labeling.loc[COUNTER] = [image_id[1:], top_emoji]
+                    # COUNTER += 1
+                    # print(f"{image_id} has {top_emoji} labels")
+                    print(
+                        f"Successfully Saved ! Non - Empty piece {num_of_split_samples} from {start_time} to {ending_time} with emoji label {top_emoji} into dataframe")
 
-                print(
-                    f"Successfully Saved ! Non - Empty piece {num_of_split_samples} from {start_time} to {ending_time} with matrix {image_matrix.shape} and sample rate {sample_rate} with emoji label {top_emoji}")
+                # print(
+                #         f"Successfully Saved ! Non - Empty piece {num_of_split_samples} from {start_time} to {ending_time} with matrix {image_matrix.shape} and sample rate {sample_rate} with emoji label {top_emoji}")
+
             else:
                 print(f" Skipping! Image {image_id} already saved.")
 
@@ -130,7 +159,7 @@ def create_splits(mp3, song_entry, unique_song_id):
         num_of_split_samples -= 1
 
 
-def create_images(dali_data):
+def create_images(dali_data, single_label):
 
     # Collect all songs downloaded
     tracks = glob.glob(AUDIO_PATH+'/*.mp3')
@@ -165,7 +194,7 @@ def create_images(dali_data):
                     print("Yes it is an english song, succesfully loaded")
 
                     # Only process files which are successfully loaded
-                    create_splits(mp3_file, entry, song_id)
+                    create_splits(mp3_file, entry, song_id, single_label)
 
                 else:
                     print("English song but not loaded")
@@ -175,7 +204,7 @@ def create_images(dali_data):
             print("Song lyrics not found")
 
 
-def allinone():
+def allinone(single_label=True):
 
     # Path to stored dataset
     dali_data_path = '/Users/amanshukla/Downloads/DALI_v1.0'
@@ -193,7 +222,7 @@ def allinone():
     # Reading DALI data for text processing
     dali_data = dali_code.get_the_DALI_dataset(dali_data_path, skip=[], keep=[])
 
-    create_images(dali_data)
+    create_images(dali_data, single_label)
 
 
 # def batches_of_16(timing, batch=list(range(16, 193, 16))):
@@ -277,6 +306,34 @@ def allinone():
 # plt.hist(GLOBAL_PARA_LENGTH)
 # plt.show()
 
+def multi_label(single_label=False):
+    # Path to stored dataset
+    dali_data_path = '/Users/amanshukla/Downloads/DALI_v1.0'
+
+    # Format of dali_info : array(['UNIQUE_DALI_ID', 'ARTIST NAME-SONG NAME', 'YOUTUBE LINK', 'WORKING/NOT WORKING'])
+    dali_info = dali_code.get_info(dali_data_path + '/info/DALI_DATA_INFO.gz')
+
+    # Reading DALI data for text processing
+    dali_data = dali_code.get_the_DALI_dataset(
+        dali_data_path, skip=[], keep=[])
+
+    create_images(dali_data, single_label)
+    # print(labeling.T)
+    # X = [x for row in labeling.emoji.values for x in row]
+    # col = ["images"] + list(set(X))
+    # df2 = get_dummies(labeling['emoji'].apply(Series).stack()).sum(level=0)
+
+    # df = concat([labeling,df2], axis=1)
+
+    # df.to_csv('real.csv', index=False)
+
+    # print(df)
+    # return df
+
 if __name__ == '__main__':
-    allinone()
-    # pass
+#     # Uncomment this function to generate spectrograms for single class labels
+#     # allinone()
+
+#     # New function to genereate images with multiple labels for multi lanel class prediction
+    multi_label()   
+#     # pass
