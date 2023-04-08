@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Emomusic player</title>
+	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body>
+<h1>EmoMusic Player</h1>
+<div class="main">
+    <!-- top section -->
+    <div class="top_section">
+  		<h5>The Playlist&nbsp;&nbsp;<i class="fa fa-headphones" aria-hidden="true"></i></h5>
+  	</div>
+
+
+  <div class="tracks">
+    
+    <!-- small music player -->
+    <div class="small_music_player">
+		
+    	<div class="s_player_img">
+    	
+           <!-- wave animation part -->
+    	   <div class="wave_animation">
+			 <li></li>
+			 <li></li>
+			 <li></li>
+			 <li></li>
+			 <li></li>
+	       </div>
+	    </div>
+
+    	<div class="song_detail" aria-hidden="true">
+    		<p id="song_name">hey</p>
+    		<p id="artist_name">Null</p>
+    	</div>
+    	<i class="fa fa-chevron-up" aria-hidden="true" id="up_player"></i>
+    </div>
+
+
+    <!--  popup music player part -->
+    <div class="popup_music_player">
+         <div class="top">
+    	    <p>Now Playing</p>
+    	    <i class="fa fa-chevron-down" aria-hidden="true" id="down_player"></i>
+        </div>
+
+		<div class="emoji-container">
+			<h2 id = "emoji"> 😥 </h2>
+			<h2 id = "emoji"> 🤟 </h2>
+			<h2 id = "emoji"> 🥰 </h2>
+			<h2 id = "emoji"> 😭 </h2>
+		</div>   
+
+       <div class="song_description">
+          <h3 id="current_track_name">hey</h3>
+          <p id="current_singer_name">Null</p>
+       </div>
+
+       <div class="controlls">
+    	 <div class="progress_part">
+    		<input type="range" min="0" max="100" value="0" id="slider" onchange="change_duration()">
+    		<div class="durations">
+    			<p id="current_duration">0:00</p>
+    		    <p id="total_duration">0:00</p>
+    		</div>
+       </div>
+    	
+	   <div id="waveform"></div>
+	   
+        <!-- controlls btn's -->
+        <div class="controlls_btns">
+			<button id="random_play" class="action-btn">random play</button>
+			<button id="backward_btn"><i class="fa fa-backward" aria-hidden="true"></i></button>
+			<button id="play_pause_btn"><i class="fa fa-play" aria-hidden="true"></i></button>
+			<button id="forward_btn"><i class="fa fa-forward" aria-hidden="true"></i></button>
+			<button id="cycle_play" class="action-btn">cycle play</button>
+        </div>
+      </div>
+    </div>
+</div>
+
+
+<script src="song_list.js"></script>
+<script src="main.js"></script>
+<script src="https://unpkg.com/wavesurfer.js"></script>
+<script>
+	let xhr = {
+		cache: 'default',
+		mode: 'cors',
+		method: 'GET',
+		credentials: 'same-origin',
+		redirect: 'follow',
+		referrer: 'client',
+		headers: [ { key: 'Authorization', value: 'my-token' } ]
+	};
+
+	const audio = new Audio('music/1.mp3')
+    var wavesurfer = WaveSurfer.create({
+        container: '#waveform',
+        waveColor: '#e3bbee',
+        progressColor: '#fe38ab',
+        barWidth: 1,
+        responsive: true,
+        hideScrollbar: true,
+        barRadius: 1
+        });
+    wavesurfer.load(audio);
+	wavesurfer.setMute()
+
+
+</script>
+</body>
+</html>
