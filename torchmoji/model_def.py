@@ -144,7 +144,7 @@ class TorchMoji(nn.Module):
                 self.add_module('output_layer', nn.Sequential(nn.Linear(attention_size, nb_classes if self.nb_classes > 2 else 1)))
             else:
                 self.add_module('output_layer', nn.Sequential(nn.Linear(attention_size, nb_classes if self.nb_classes > 2 else 1),
-                                                              nn.Softmax() if self.nb_classes > 2 else nn.Sigmoid()))
+                                                              nn.Softmax(dim=1) if self.nb_classes > 2 else nn.Sigmoid()))
         self.init_weights()
         # Put model in evaluation mode by default
         self.eval()
@@ -156,15 +156,15 @@ class TorchMoji(nn.Module):
         ih = (param.data for name, param in self.named_parameters() if 'weight_ih' in name)
         hh = (param.data for name, param in self.named_parameters() if 'weight_hh' in name)
         b = (param.data for name, param in self.named_parameters() if 'bias' in name)
-        nn.init.uniform(self.embed.weight.data, a=-0.5, b=0.5)
+        nn.init.uniform_(self.embed.weight.data, a=-0.5, b=0.5)
         for t in ih:
-            nn.init.xavier_uniform(t)
+            nn.init.xavier_uniform_(t)
         for t in hh:
-            nn.init.orthogonal(t)
+            nn.init.orthogonal_(t)
         for t in b:
-            nn.init.constant(t, 0)
+            nn.init.constant_(t, 0)
         if not self.feature_output:
-            nn.init.xavier_uniform(self.output_layer[0].weight.data)
+            nn.init.xavier_uniform_(self.output_layer[0].weight.data)
 
     def forward(self, input_seqs):
         """ Forward pass.
@@ -177,10 +177,8 @@ class TorchMoji(nn.Module):
         """
         # Check if we have Torch.LongTensor inputs or not Torch.Variable (assume Numpy array in this case), take note to return same format
         return_numpy = False
-        return_tensor = False
         if isinstance(input_seqs, (torch.LongTensor, torch.cuda.LongTensor)):
             input_seqs = Variable(input_seqs)
-            return_tensor = True
         elif not isinstance(input_seqs, Variable):
             input_seqs = Variable(torch.from_numpy(input_seqs.astype('int64')).long())
             return_numpy = True
@@ -246,8 +244,6 @@ class TorchMoji(nn.Module):
             outputs = reorered
 
         # Adapt return format if needed
-        if return_tensor:
-            outputs = outputs.data
         if return_numpy:
             outputs = outputs.data.numpy()
 

@@ -75,7 +75,8 @@ class LSTMHardSigmoid(Module):
     def forward(self, input, hx=None):
         is_packed = isinstance(input, PackedSequence)
         if is_packed:
-            input, batch_sizes = input
+            batch_sizes = input.batch_sizes
+            input = input.data
             max_batch_size = batch_sizes[0]
         else:
             batch_sizes = None
@@ -337,11 +338,11 @@ def LSTMCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None):
 
     ingate = hard_sigmoid(ingate)
     forgetgate = hard_sigmoid(forgetgate)
-    cellgate = F.tanh(cellgate)
+    cellgate = torch.tanh(cellgate)
     outgate = hard_sigmoid(outgate)
 
     cy = (forgetgate * cx) + (ingate * cellgate)
-    hy = outgate * F.tanh(cy)
+    hy = outgate * torch.tanh(cy)
 
     return hy, cy
 
